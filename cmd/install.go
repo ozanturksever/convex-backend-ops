@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -284,20 +285,46 @@ CONVEX_INSTANCE_SECRET_FILE=/etc/convex/instance.secret
 }
 
 func installSystemdService() error {
-	serviceContent := `[Unit]
+	// Read credentials to get the instance name and secret
+	creds, err := extractCredentials("/var/lib/convex")
+	if err != nil {
+		// Fall back to reading from /etc/convex if bundle path doesn't work
+		adminKeyBytes, readErr := os.ReadFile("/etc/convex/admin.key")
+		if readErr != nil {
+			return fmt.Errorf("failed to read admin key: %w", readErr)
+		}
+		adminKey := string(adminKeyBytes)
+		
+		instanceSecretBytes, readErr := os.ReadFile("/etc/convex/instance.secret")
+		if readErr != nil {
+			return fmt.Errorf("failed to read instance secret: %w", readErr)
+		}
+		creds = &Credentials{
+			AdminKey:       adminKey,
+			InstanceSecret: string(instanceSecretBytes),
+		}
+	}
+
+	// Extract instance name from admin key (format: instanceName|base64data)
+	instanceName := "convex"
+	if idx := strings.Index(creds.AdminKey, "|"); idx > 0 {
+		instanceName = creds.AdminKey[:idx]
+	}
+
+	serviceContent := fmt.Sprintf(`[Unit]
 Description=Convex Backend
 After=network.target
 
 [Service]
 Type=simple
 EnvironmentFile=/etc/convex/convex.env
-ExecStart=/usr/local/bin/convex-backend
+ExecStart=/usr/local/bin/convex-backend /var/lib/convex/data/convex.db --port 3210 --instance-name %s --instance-secret %s --local-storage /var/lib/convex/data/storage
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-`
+`, instanceName, creds.InstanceSecret)
 	if err := os.WriteFile("/etc/systemd/system/convex-backend.service", []byte(serviceContent), 0644); err != nil {
 		return err
 	}
