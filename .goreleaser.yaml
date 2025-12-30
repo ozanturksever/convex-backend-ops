@@ -1,0 +1,80 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: convex-backend-ops
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: convex-backend-ops
+    main: .
+    binary: convex-backend-ops
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/ozanturksever/convex-backend-ops/cmd.Version={{.Version}}
+      - -X github.com/ozanturksever/convex-backend-ops/cmd.GitCommit={{.ShortCommit}}
+      - -X github.com/ozanturksever/convex-backend-ops/cmd.BuildTime={{.Date}}
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+
+release:
+  github:
+    owner: ozanturksever
+    name: convex-backend-ops
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## convex-backend-ops {{ .Tag }}
+    
+    Single-binary operations tool for deploying and managing Convex backend.
+  footer: |
+    ## Installation
+    
+    ```bash
+    # Linux AMD64
+    curl -fsSL https://github.com/ozanturksever/convex-backend-ops/releases/download/{{ .Tag }}/convex-backend-ops_Linux_x86_64.tar.gz | tar xz
+    
+    # Linux ARM64
+    curl -fsSL https://github.com/ozanturksever/convex-backend-ops/releases/download/{{ .Tag }}/convex-backend-ops_Linux_arm64.tar.gz | tar xz
+    ```

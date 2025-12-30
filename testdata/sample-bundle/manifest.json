@@ -1,0 +1,9 @@
+{
+  "name": "Test Backend",
+  "version": "0.2.0",
+  "apps": [
+    "./testdata/sample-app"
+  ],
+  "platform": "linux-arm64",
+  "createdAt": "2025-12-30T01:14:24Z"
+}

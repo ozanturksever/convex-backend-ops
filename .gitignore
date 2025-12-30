@@ -1,0 +1,39 @@
+# Binary
+convex-backend-ops
+
+# Release artifacts
+dist/
+
+# Test fixtures (downloaded)
+testdata/sample-bundle/backend
+testdata/sample-bundle/convex.db
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+# pre-commit
+.pre-commit-config.yaml
