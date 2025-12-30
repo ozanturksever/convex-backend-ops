@@ -30,6 +30,10 @@ without needing Node.js.`,
 }
 
 func Execute() error {
+	// Initialize self-host mode detection before running any commands
+	// This checks if the current executable contains an embedded bundle
+	InitSelfHostMode()
+
 	return rootCmd.Execute()
 }
 

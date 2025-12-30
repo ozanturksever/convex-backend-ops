@@ -30,8 +30,8 @@ var installCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(installCmd)
-	installCmd.Flags().StringVarP(&installBundlePath, "bundle", "b", "", "Path to the bundle directory (required)")
-	installCmd.MarkFlagRequired("bundle")
+	installCmd.Flags().StringVarP(&installBundlePath, "bundle", "b", "", "Path to the bundle directory (uses embedded bundle if not specified)")
+	// Note: --bundle is NOT marked as required because self-host executables have embedded bundles
 }
 
 func runInstall(cmd *cobra.Command, args []string) error {
@@ -48,11 +48,39 @@ func runInstall(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if err := validateBundle(installBundlePath); err != nil {
+	// Determine bundle path - either from flag or from embedded bundle
+	bundlePath := installBundlePath
+	var cleanupFunc func()
+
+	if bundlePath == "" {
+		// No --bundle flag provided, check if we're in self-host mode
+		if !IsSelfHostMode() {
+			return fmt.Errorf("--bundle flag is required (or run a self-host executable with embedded bundle)")
+		}
+
+		printInfo("Using embedded bundle from self-host executable...")
+
+		// Extract embedded bundle to temp directory
+		printInfo("Extracting embedded bundle...")
+		var err error
+		bundlePath, cleanupFunc, err = GetEmbeddedBundlePath()
+		if err != nil {
+			return fmt.Errorf("failed to extract embedded bundle: %w", err)
+		}
+
+		printInfo("Bundle extracted to temporary directory")
+	}
+
+	// Ensure cleanup runs if we extracted an embedded bundle
+	if cleanupFunc != nil {
+		defer cleanupFunc()
+	}
+
+	if err := validateBundle(bundlePath); err != nil {
 		return fmt.Errorf("invalid bundle: %w", err)
 	}
 
-	printInfo("Installing Convex backend from bundle: %s", installBundlePath)
+	printInfo("Installing Convex backend from bundle: %s", bundlePath)
 
 	// Create directory structure
 	printInfo("Creating directories...")
@@ -62,13 +90,13 @@ func runInstall(cmd *cobra.Command, args []string) error {
 
 	// Copy bundle assets
 	printInfo("Copying bundle assets...")
-	if err := copyBundleAssets(installBundlePath); err != nil {
+	if err := copyBundleAssets(bundlePath); err != nil {
 		return fmt.Errorf("failed to copy bundle assets: %w", err)
 	}
 
 	// Extract credentials
 	printInfo("Extracting credentials...")
-	creds, err := extractCredentials(installBundlePath)
+	creds, err := extractCredentials(bundlePath)
 	if err != nil {
 		return fmt.Errorf("failed to extract credentials: %w", err)
 	}
@@ -92,7 +120,7 @@ func runInstall(cmd *cobra.Command, args []string) error {
 	// Copy manifest
 	printInfo("Copying manifest...")
 	if err := copyFile(
-		filepath.Join(installBundlePath, "manifest.json"),
+		filepath.Join(bundlePath, "manifest.json"),
 		"/var/lib/convex/manifest.json",
 	); err != nil {
 		return fmt.Errorf("failed to copy manifest: %w", err)
