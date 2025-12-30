@@ -1,3 +1,6 @@
+# Systemd-enabled Docker image for integration testing
+# See docker-systemd.md in the project root for requirements on running this container
+# (requires --privileged, --cgroupns=host, tmpfs mounts, and cgroup bind mount)
 FROM ubuntu:24.04
 
 # Install systemd and required packages
