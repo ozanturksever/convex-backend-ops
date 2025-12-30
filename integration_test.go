@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -417,6 +418,10 @@ func startSystemdContainer(t *testing.T, ctx context.Context) testcontainers.Con
 		Mounts: testcontainers.Mounts(
 			testcontainers.BindMount("/sys/fs/cgroup", "/sys/fs/cgroup"),
 		),
+		HostConfigModifier: func(hc *container.HostConfig) {
+			// Required for systemd to manage cgroups properly in containers
+			hc.CgroupnsMode = "host"
+		},
 		WaitingFor: wait.ForExec([]string{"systemctl", "is-system-running", "--wait"}).
 			WithStartupTimeout(120 * time.Second).
 			WithExitCodeMatcher(func(exitCode int) bool {
